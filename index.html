@@ -1,53 +1,82 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <meta charset="utf-8">
+  <head>
+    <meta charset="utf-8" />
     <title>Browser inference demo</title>
 
     <style>
-        #features {
-            width: 50%;
-            font-size: 18px;
-        }
+      #features {
+        width: 50%;
+        font-size: 18px;
+      }
 
-        #results {
-            font-family: monospace;
-            white-space: pre;
-        }
+      #results {
+        font-family: monospace;
+        white-space: pre;
+      }
     </style>
-</head>
-<body>
-    <h1></h1>
-
-    <p>
-        <input type="text" id="features" placeholder="Paste your features here">
-    </p>
-    <p>
-        <button id="run-inference">Run inference</button>
-    </p>
-    <p id="results"></p>
-
-    <script src="edge-impulse-standalone.js"></script>
-    <script src="run-impulse.js"></script>
-    <script>
-        (async () => {
-            var classifier = new EdgeImpulseClassifier();
-            await classifier.init();
-
-            let project = classifier.getProjectInfo();
-            document.querySelector('h1').textContent = project.owner + ' / ' + project.name + ' (version ' + project.deploy_version + ')';
-
-            document.querySelector('#run-inference').onclick = () => {
-                try {
-                    let features = document.querySelector('#features').value.split(',').map(x => Number(x.trim()));
-                    let res = classifier.classify(features);
-                    document.querySelector('#results').textContent = JSON.stringify(res, null, 4);
-                }
-                catch (ex) {
-                    alert('Failed to classify: ' + (ex.message || ex.toString()));
-                }
-            };
-        })();
+  </head>
+  <body>
+    <div>Teachable Machine Image Model</div>
+    <input type="file" id="image-upload" accept="image/*" onchange="loadImage(event)" />
+    <div id="image-container"></div>
+    <div id="label-container"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+  
+    <script type="text/javascript">
+      const URL = "https://teachablemachine.withgoogle.com/models/edJaGHzZM/";
+  
+      let model, labelContainer, maxPredictions, imageElement;
+  
+      // Load the image model on page load
+      async function loadModel() {
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
+  
+        // Load the model and metadata
+        model = await tmImage.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
+  
+        // Create label containers for predictions
+        labelContainer = document.getElementById("label-container");
+        for (let i = 0; i < maxPredictions; i++) {
+          labelContainer.appendChild(document.createElement("div"));
+        }
+      }
+  
+      // Load the selected image and display it
+      function loadImage(event) {
+        const reader = new FileReader();
+        reader.onload = function () {
+          const imageContainer = document.getElementById("image-container");
+          imageElement = new Image();
+          imageElement.src = reader.result;
+          imageElement.width = 200; // Set image size if needed
+          imageElement.height = 200;
+          imageContainer.innerHTML = ""; // Clear previous image
+          imageContainer.appendChild(imageElement);
+          predict(); // Predict the uploaded image after loading
+        };
+        reader.readAsDataURL(event.target.files[0]);
+      }
+  
+      // Run the uploaded image through the image model
+      async function predict() {
+        if (!imageElement) return;
+        
+        const prediction = await model.predict(imageElement);
+        for (let i = 0; i < maxPredictions; i++) {
+          const classPrediction =
+            prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+          labelContainer.childNodes[i].innerHTML = classPrediction;
+        }
+      }
+  
+      // Load the model as soon as the page loads
+      window.onload = loadModel;
     </script>
-</body>
+  </body>
+  
 </html>
